@@ -15,23 +15,63 @@ function pointsFromValues(values, width, height, min, max, padding = 18) {
   const range = max - min
   const xStep = (width - padding * 2) / (values.length - 1)
 
-  return values
-    .map((value, index) => {
-      const x = padding + index * xStep
-      const y =
-        height -
-        padding -
-        ((value - min) / range) * (height - padding * 2)
-      return `${x},${y}`
-    })
-    .join(' ')
+  return values.map((value, index) => {
+    const x = padding + index * xStep
+    const y = height - padding - ((value - min) / range) * (height - padding * 2)
+    return { x, y }
+  })
+}
+
+function pointsToSvgString(points) {
+  return points.map((point) => `${point.x},${point.y}`).join(' ')
+}
+
+function spikePointsFromPeaks(points, peakLift = 18, shoulderInset = 0.24, minY = 8) {
+  if (points.length <= 2) {
+    return points
+  }
+
+  const spiked = [points[0]]
+  const flatTolerance = 0.15
+
+  for (let i = 1; i < points.length - 1; i += 1) {
+    const prev = points[i - 1]
+    const current = points[i]
+    const next = points[i + 1]
+
+    const isLocalPeak = current.y <= prev.y && current.y <= next.y
+    if (!isLocalPeak) {
+      spiked.push(current)
+      continue
+    }
+
+    const isPlateau =
+      Math.abs(current.y - prev.y) <= flatTolerance
+      || Math.abs(current.y - next.y) <= flatTolerance
+
+    const leftX = current.x - (current.x - prev.x) * shoulderInset
+    const rightX = current.x + (next.x - current.x) * shoulderInset
+    const shoulderY = current.y + 0.9
+    const plateauBoost = isPlateau ? 6 : 0
+    const apexY = Math.max(minY, current.y - peakLift - plateauBoost)
+
+    spiked.push({ x: leftX, y: shoulderY })
+    spiked.push({ x: current.x, y: apexY })
+    spiked.push({ x: rightX, y: shoulderY })
+  }
+
+  spiked.push(points[points.length - 1])
+  return spiked
 }
 
 function App() {
   const lineWidth = 340
   const lineHeight = 170
-  const heartPoints = pointsFromValues(heartRateData, lineWidth, lineHeight, 60, 170)
-  const tensionPoints = pointsFromValues(tensionData, lineWidth, lineHeight, 0, 100)
+  const heartPointObjects = pointsFromValues(heartRateData, lineWidth, lineHeight, 60, 170)
+  const heartSpikedPoints = spikePointsFromPeaks(heartPointObjects)
+  const heartPoints = pointsToSvgString(heartSpikedPoints)
+  const tensionPointObjects = pointsFromValues(tensionData, lineWidth, lineHeight, 0, 100)
+  const tensionPoints = pointsToSvgString(tensionPointObjects)
   const tensionArea = `${tensionPoints} 322,152 18,152`
   const activation = 72
   const ringCircumference = 2 * Math.PI * 52

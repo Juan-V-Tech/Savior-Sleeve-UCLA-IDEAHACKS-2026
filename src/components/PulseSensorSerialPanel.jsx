@@ -3,24 +3,25 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 const BAUD_RATE = 115200
 const HISTORY_LEN = 600
 const BASELINE = 2048
+const MAX_BPM = 210
+const MAX_BPM_STEP = 8
+const BPM_SMOOTHING_ALPHA = 0.35
 
 function PulseSensorSerialPanel() {
   const canvasRef = useRef(null)
   const ctxRef = useRef(null)
   const dprRef = useRef(1)
   const historyRef = useRef(new Array(HISTORY_LEN).fill(BASELINE))
+  const smoothedBpmRef = useRef(null)
   const portRef = useRef(null)
   const readerRef = useRef(null)
   const runningRef = useRef(false)
-  const pulseTimeoutRef = useRef(null)
 
   const [connected, setConnected] = useState(false)
   const [status, setStatus] = useState('Disconnected')
   const [signal, setSignal] = useState(null)
   const [bpm, setBpm] = useState(null)
   const [ibi, setIbi] = useState(null)
-  const [beat, setBeat] = useState(0)
-  const [heartPulse, setHeartPulse] = useState(false)
   const [rawLine, setRawLine] = useState('waiting...')
   const [errorMsg, setErrorMsg] = useState('')
 
@@ -87,11 +88,7 @@ function PulseSensorSerialPanel() {
 
   const disconnectFromSerial = useCallback(async () => {
     runningRef.current = false
-
-    if (pulseTimeoutRef.current) {
-      clearTimeout(pulseTimeoutRef.current)
-      pulseTimeoutRef.current = null
-    }
+    smoothedBpmRef.current = null
 
     if (readerRef.current) {
       try {
@@ -128,35 +125,42 @@ function PulseSensorSerialPanel() {
       setRawLine(line)
 
       const parts = line.split(',')
-      if (parts.length < 4) {
+      if (parts.length < 3) {
         return
       }
 
-      const [nextSignal, nextBpm, nextIbi, nextBeat] = parts.map((value) => Number(value))
-      if (
-        Number.isNaN(nextSignal)
-        || Number.isNaN(nextBpm)
-        || Number.isNaN(nextIbi)
-        || Number.isNaN(nextBeat)
-      ) {
+      const nextSignal = Number(parts[0])
+      const nextBpm = Number(parts[1])
+      const nextIbi = Number(parts[2])
+
+      if (Number.isNaN(nextSignal) || Number.isNaN(nextBpm) || Number.isNaN(nextIbi)) {
         return
       }
 
       setSignal(nextSignal)
-      setBpm(nextBpm > 0 ? nextBpm : null)
-      setIbi(nextBpm > 0 && nextIbi > 0 ? nextIbi : null)
-      setBeat(nextBeat ? 1 : 0)
 
-      if (nextBeat) {
-        setHeartPulse(true)
-        if (pulseTimeoutRef.current) {
-          clearTimeout(pulseTimeoutRef.current)
+      if (nextBpm > 0) {
+        const cappedBpm = Math.min(nextBpm, MAX_BPM)
+        const previousSmoothed = smoothedBpmRef.current
+
+        if (previousSmoothed === null) {
+          smoothedBpmRef.current = cappedBpm
+        } else {
+          const boundedTarget = Math.max(
+            previousSmoothed - MAX_BPM_STEP,
+            Math.min(cappedBpm, previousSmoothed + MAX_BPM_STEP),
+          )
+
+          smoothedBpmRef.current = previousSmoothed + (boundedTarget - previousSmoothed) * BPM_SMOOTHING_ALPHA
         }
-        pulseTimeoutRef.current = setTimeout(() => {
-          setHeartPulse(false)
-          pulseTimeoutRef.current = null
-        }, 150)
+
+        setBpm(Math.round(smoothedBpmRef.current))
+      } else {
+        smoothedBpmRef.current = null
+        setBpm(null)
       }
+
+      setIbi(nextBpm > 0 && nextIbi > 0 ? nextIbi : null)
 
       const history = historyRef.current
       history.shift()
@@ -259,7 +263,7 @@ function PulseSensorSerialPanel() {
       <div className="section-header-row serial-head">
         <div>
           <h2>Live Device Integration</h2>
-          <p>Connect PulseSensor over Web Serial to stream real-time signal, BPM, IBI, and beat state.</p>
+          <p>Connect PulseSensor over Web Serial to stream real-time signal, smoothed BPM, and IBI.</p>
         </div>
         <button type="button" className="serial-button" onClick={handleConnectToggle}>
           {connected ? 'Disconnect' : 'Connect'}
@@ -287,14 +291,6 @@ function PulseSensorSerialPanel() {
         <article className="serial-var ibi">
           <h3>IBI (ms)</h3>
           <p>{ibi ?? '-'}</p>
-        </article>
-
-        <article className="serial-var beat">
-          <h3>Beat</h3>
-          <p>
-            {beat}
-            <span className={`serial-heart ${heartPulse ? 'pulse' : ''}`}> Heart</span>
-          </p>
         </article>
       </div>
 

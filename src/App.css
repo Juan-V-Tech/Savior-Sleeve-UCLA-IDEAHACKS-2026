@@ -462,7 +462,7 @@
 
 .serial-vars {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 0.65rem;
 }
 
@@ -494,22 +494,6 @@
 
 .serial-var.ibi p {
   color: #b57723;
-}
-
-.serial-var.beat p {
-  color: #0e7580;
-}
-
-.serial-heart {
-  font-size: 0.95rem;
-  font-weight: 700;
-  display: inline-block;
-  transition: transform 0.1s ease;
-  transform-origin: left center;
-}
-
-.serial-heart.pulse {
-  transform: scale(1.2);
 }
 
 .serial-raw-box {
