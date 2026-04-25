@@ -1,4 +1,5 @@
 import './App.css'
+import PulseSensorSerialPanel from './components/PulseSensorSerialPanel'
 
 const heartRateData = [72, 80, 96, 121, 142, 156, 148, 131, 109, 92]
 const tensionData = [20, 24, 31, 48, 62, 70, 73, 61, 42, 30]
@@ -287,6 +288,8 @@ function App() {
           </li>
         </ol>
       </section>
+
+      <PulseSensorSerialPanel />
 
       <section className="section" id="fashion-track">
         <h2>Not just wearable tech. Wearable identity.</h2>
