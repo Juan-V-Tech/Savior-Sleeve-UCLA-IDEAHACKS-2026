@@ -7,6 +7,37 @@ const MAX_BPM = 210
 const MAX_BPM_STEP = 8
 const BPM_SMOOTHING_ALPHA = 0.35
 
+function historyBounds(history, minSpan = 16, paddingRatio = 0.18) {
+  let min = Number.POSITIVE_INFINITY
+  let max = Number.NEGATIVE_INFINITY
+
+  for (const value of history) {
+    if (!Number.isFinite(value)) {
+      continue
+    }
+
+    if (value < min) {
+      min = value
+    }
+    if (value > max) {
+      max = value
+    }
+  }
+
+  if (!Number.isFinite(min) || !Number.isFinite(max)) {
+    return { min: 0, max: minSpan }
+  }
+
+  const span = Math.max(max - min, minSpan)
+  const center = (min + max) / 2
+  const paddedSpan = span * (1 + paddingRatio * 2)
+
+  return {
+    min: Math.max(0, center - paddedSpan / 2),
+    max: center + paddedSpan / 2,
+  }
+}
+
 function PulseSensorSerialPanel() {
   const canvasRef = useRef(null)
   const ctxRef = useRef(null)
@@ -25,7 +56,7 @@ function PulseSensorSerialPanel() {
   const [rawLine, setRawLine] = useState('waiting...')
   const [errorMsg, setErrorMsg] = useState('')
 
-  const drawWave = useCallback((min, max) => {
+  const drawWave = useCallback(() => {
     const canvas = canvasRef.current
     const ctx = ctxRef.current
     const dpr = dprRef.current
@@ -40,17 +71,20 @@ function PulseSensorSerialPanel() {
     ctx.fillStyle = '#eff6f9'
     ctx.fillRect(0, 0, width, height)
 
-    const range = Math.max(max - min, 1)
-    const scale = height / 2 / range
+    const history = historyRef.current
+    const bounds = historyBounds(history)
+    const range = Math.max(bounds.max - bounds.min, 1)
+    const xStep = width / (HISTORY_LEN - 1)
 
     ctx.strokeStyle = '#f26342'
     ctx.lineWidth = 2
     ctx.beginPath()
 
-    const history = historyRef.current
     for (let i = 0; i < HISTORY_LEN; i += 1) {
-      const x = (i / HISTORY_LEN) * width
-      const y = height / 2 - ((history[i] - min) * scale - (range / 2) * scale)
+      const x = i * xStep
+      const normalized = (history[i] - bounds.min) / range
+      const clamped = Math.max(0, Math.min(normalized, 1))
+      const y = height - clamped * height
       if (i === 0) {
         ctx.moveTo(x, y)
       } else {
@@ -83,7 +117,7 @@ function PulseSensorSerialPanel() {
     ctx.scale(dpr, dpr)
     ctxRef.current = ctx
 
-    drawWave(BASELINE, BASELINE)
+    drawWave()
   }, [drawWave])
 
   const disconnectFromSerial = useCallback(async () => {
@@ -168,18 +202,7 @@ function PulseSensorSerialPanel() {
           taggedHistory.shift()
           taggedHistory.push(nextSignal)
 
-          let min = taggedHistory[0]
-          let max = taggedHistory[0]
-          for (let i = 1; i < taggedHistory.length; i += 1) {
-            if (taggedHistory[i] < min) {
-              min = taggedHistory[i]
-            }
-            if (taggedHistory[i] > max) {
-              max = taggedHistory[i]
-            }
-          }
-
-          drawWave(min, max)
+          drawWave()
         }
         return
       }
@@ -226,18 +249,7 @@ function PulseSensorSerialPanel() {
       history.shift()
       history.push(nextSignal)
 
-      let min = history[0]
-      let max = history[0]
-      for (let i = 1; i < history.length; i += 1) {
-        if (history[i] < min) {
-          min = history[i]
-        }
-        if (history[i] > max) {
-          max = history[i]
-        }
-      }
-
-      drawWave(min, max)
+      drawWave()
     },
     [drawWave],
   )
@@ -322,8 +334,8 @@ function PulseSensorSerialPanel() {
     <section className="section serial-panel" id="device-integration">
       <div className="section-header-row serial-head">
         <div>
-          <h2>Live Device Integration</h2>
-          <p>Connect PulseSensor over Web Serial to stream real-time signal, smoothed BPM, and IBI.</p>
+          <h2>Live Cardio Therapy Feed</h2>
+          <p>Connect PulseSensor over Web Serial for real-time signal and smoothed BPM during therapy.</p>
         </div>
         <button type="button" className="serial-button" onClick={handleConnectToggle}>
           {connected ? 'Disconnect' : 'Connect'}

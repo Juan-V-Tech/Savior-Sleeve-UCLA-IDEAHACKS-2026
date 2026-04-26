@@ -15,7 +15,7 @@ const recoveryData = [
 ]
 
 function pointsFromValues(values, width, height, min, max, padding = 18) {
-  const range = max - min
+  const range = Math.max(max - min, 1)
   const xStep = (width - padding * 2) / (values.length - 1)
 
   return values.map((value, index) => {
@@ -23,6 +23,38 @@ function pointsFromValues(values, width, height, min, max, padding = 18) {
     const y = height - padding - ((value - min) / range) * (height - padding * 2)
     return { x, y }
   })
+}
+
+function dynamicBounds(values, options = {}) {
+  const { minSpan = 8, paddingRatio = 0.14 } = options
+  let min = Number.POSITIVE_INFINITY
+  let max = Number.NEGATIVE_INFINITY
+
+  for (const value of values) {
+    if (!Number.isFinite(value)) {
+      continue
+    }
+
+    if (value < min) {
+      min = value
+    }
+    if (value > max) {
+      max = value
+    }
+  }
+
+  if (!Number.isFinite(min) || !Number.isFinite(max)) {
+    return { min: 0, max: minSpan }
+  }
+
+  const baseSpan = Math.max(max - min, minSpan)
+  const center = (min + max) / 2
+  const paddedSpan = baseSpan * (1 + paddingRatio * 2)
+
+  return {
+    min: center - paddedSpan / 2,
+    max: center + paddedSpan / 2,
+  }
 }
 
 function pointsToSvgString(points) {
@@ -70,12 +102,32 @@ function spikePointsFromPeaks(points, peakLift = 18, shoulderInset = 0.24, minY 
 function App() {
   const lineWidth = 340
   const lineHeight = 170
-  const heartPointObjects = pointsFromValues(heartRateData, lineWidth, lineHeight, 60, 170)
+  const chartPadding = 18
+  const heartRange = dynamicBounds(heartRateData, { minSpan: 12 })
+  const tensionRange = dynamicBounds(tensionData, { minSpan: 10 })
+  const heartPointObjects = pointsFromValues(
+    heartRateData,
+    lineWidth,
+    lineHeight,
+    heartRange.min,
+    heartRange.max,
+    chartPadding,
+  )
   const heartSpikedPoints = spikePointsFromPeaks(heartPointObjects)
   const heartPoints = pointsToSvgString(heartSpikedPoints)
-  const tensionPointObjects = pointsFromValues(tensionData, lineWidth, lineHeight, 0, 100)
+  const tensionPointObjects = pointsFromValues(
+    tensionData,
+    lineWidth,
+    lineHeight,
+    tensionRange.min,
+    tensionRange.max,
+    chartPadding,
+  )
   const tensionPoints = pointsToSvgString(tensionPointObjects)
-  const tensionArea = `${tensionPoints} 322,152 18,152`
+  const bottomY = lineHeight - chartPadding
+  const rightX = lineWidth - chartPadding
+  const leftX = chartPadding
+  const tensionArea = `${tensionPoints} ${rightX},${bottomY} ${leftX},${bottomY}`
   const activation = 72
   const ringCircumference = 2 * Math.PI * 52
   const ringOffset = ringCircumference - (activation / 100) * ringCircumference
@@ -84,107 +136,114 @@ function App() {
     <main className="page">
       <section className="hero section" id="hero">
         <div className="hero-copy">
-          <p className="eyebrow">Wearable wellness and rehab intelligence</p>
-          <h1>Savior Sleeve</h1>
+          <p className="eyebrow">Hackathon Track: Fashion the Future</p>
+          <h1>Savior Sleeve Therapy Line</h1>
           <p className="lede">
-            Smarter recovery for athletes and rehab users. Track heart rate, muscle
-            tension, and activation in one dashboard that turns movement into
-            actionable feedback.
+            A futuristic, fashion-forward therapy sleeve concept for physical and
+            clinical recovery. Track heart rate, muscle tension, and activation in
+            one sleek dashboard designed for medical clarity and modern identity.
           </p>
+          <div className="track-card" role="note" aria-label="Hackathon track statement">
+            <strong>Fashion the Future</strong>
+            <p>
+              Create cutting-edge wearable technology, smart textiles, and
+              sustainable fashion innovations.
+            </p>
+          </div>
           <div className="hero-actions">
             <a className="btn btn-primary" href="#dashboard-preview">
-              View App Dashboard
+              View Therapy Dashboard
             </a>
-            <a className="btn btn-ghost" href="#how-it-works">
-              How It Works
+            <a className="btn btn-ghost" href="#fashion-track">
+              Style Direction
             </a>
           </div>
         </div>
 
-        <div className="hero-visual" aria-label="Savior Sleeve concept visuals">
+        <div className="hero-visual" aria-label="Savior Sleeve therapy fashion visuals">
           <figure className="tbd-image-card">
-            <figcaption>TBD: Savior Sleeve wordmark image</figcaption>
+            <figcaption>TBD: Therapy couture wordmark</figcaption>
           </figure>
           <figure className="tbd-image-card tall">
-            <figcaption>TBD: Exploded sleeve concept visual</figcaption>
+            <figcaption>TBD: Layered clinical-fashion sleeve render</figcaption>
           </figure>
         </div>
       </section>
 
       <section className="section" id="problem">
-        <h2>Problem</h2>
+        <h2>Clinical Therapy Gap</h2>
         <p className="section-intro">
-          Most people train or recover without clear feedback on how their muscles
-          are responding in real time.
+          Patients in physical therapy often need clear, consistent feedback while
+          wearing products that still feel personal and confidence boosting.
         </p>
         <div className="problem-grid">
           <article className="info-card">
             <h3>Invisible overexertion</h3>
             <p>
-              Fatigue and strain often build up before pain appears, increasing risk
-              during workouts and rehab.
+              Strain can build between clinic visits, making home sessions harder to
+              pace safely.
             </p>
           </article>
           <article className="info-card">
-            <h3>No simple progress story</h3>
+            <h3>No clear progress narrative</h3>
             <p>
-              Users struggle to compare sessions, understand recovery trends, or stay
-              consistent over weeks.
+              Patients and clinicians need a shared view of movement quality,
+              intensity, and adherence over time.
             </p>
           </article>
           <article className="info-card">
-            <h3>Clinical tools feel clinical</h3>
+            <h3>Therapy wear lacks identity</h3>
             <p>
-              Many wearables prioritize raw data over user experience and personal
-              style.
+              Most support wearables feel purely medical and are rarely designed as a
+              style statement.
             </p>
           </article>
         </div>
       </section>
 
       <section className="section" id="features">
-        <h2>Product Features</h2>
+        <h2>MVP Focus</h2>
         <div className="feature-grid">
           <article className="feature-card">
-            <h3>Heart + Tension Tracking</h3>
-            <p>Monitor cardiovascular and muscle strain patterns as movement happens.</p>
+            <h3>Therapy Vitals Tracking</h3>
+            <p>Monitor heart and muscle response during supervised or at-home therapy.</p>
           </article>
           <article className="feature-card">
-            <h3>Activation Scoring</h3>
-            <p>Understand current, average, and peak activation during each session.</p>
+            <h3>Clinical Session Score</h3>
+            <p>Capture current, average, and peak activation for therapist-friendly review.</p>
           </article>
           <article className="feature-card">
-            <h3>Recovery Progress</h3>
-            <p>Visualize range of motion, strength trends, and consistency week-to-week.</p>
+            <h3>Recovery Trajectory</h3>
+            <p>Visualize range of motion, strength trends, and consistency week to week.</p>
           </article>
           <article className="feature-card">
-            <h3>Fatigue Alerts</h3>
-            <p>Receive simple status insights when intensity patterns suggest overuse.</p>
+            <h3>Care-Ready Alerts</h3>
+            <p>Flag strain, low compliance, and fatigue signals before setbacks compound.</p>
           </article>
         </div>
       </section>
 
       <section className="section" id="who-it-helps">
-        <h2>Who It Helps</h2>
+        <h2>Who This MVP Serves</h2>
         <div className="chip-row" role="list" aria-label="Target users">
-          <span role="listitem" className="chip">Athletes in training</span>
-          <span role="listitem" className="chip">Rehab patients</span>
-          <span role="listitem" className="chip">Physical therapists</span>
-          <span role="listitem" className="chip">Daily mobility users</span>
-          <span role="listitem" className="chip">Performance coaches</span>
+          <span role="listitem" className="chip">Physical therapy patients</span>
+          <span role="listitem" className="chip">Outpatient rehab clinics</span>
+          <span role="listitem" className="chip">Clinical therapy teams</span>
+          <span role="listitem" className="chip">Orthopedic recovery users</span>
+          <span role="listitem" className="chip">Post-op mobility programs</span>
         </div>
       </section>
 
       <section className="section" id="dashboard-preview">
         <div className="section-header-row">
-          <h2>App Dashboard Preview</h2>
-          <p>Sample data for MVP demo only</p>
+          <h2>Therapy Dashboard Preview</h2>
+          <p>Sample clinical-therapy data for MVP demo only</p>
         </div>
 
         <div className="dashboard-grid">
           <article className="dashboard-card">
             <header>
-              <h3>Heart Rate Graph</h3>
+              <h3>Cardio Response Graph</h3>
               <p>Y-axis: BPM | X-axis: Time</p>
             </header>
             <svg viewBox={`0 0 ${lineWidth} ${lineHeight}`} className="chart">
@@ -193,10 +252,10 @@ function App() {
               <polyline points={heartPoints} className="line heart" />
             </svg>
             <ul className="legend-inline">
-              <li>Resting</li>
-              <li>Active</li>
-              <li>Peak effort</li>
-              <li>Recovery</li>
+              <li>Baseline</li>
+              <li>Mobility set</li>
+              <li>Clinical threshold</li>
+              <li>Cool-down</li>
             </ul>
           </article>
 
@@ -215,16 +274,16 @@ function App() {
               <polyline points={tensionPoints} className="line tension" />
             </svg>
             <ul className="legend-inline">
-              <li>Low tension</li>
-              <li>Healthy activation</li>
+              <li>Low load</li>
+              <li>Target rehab load</li>
               <li>High strain warning</li>
             </ul>
           </article>
 
           <article className="dashboard-card">
             <header>
-              <h3>Strength / Activation Score</h3>
-              <p>Current engagement and session context</p>
+              <h3>Activation Compliance Score</h3>
+              <p>Current engagement and treatment-session context</p>
             </header>
             <div className="activation-layout">
               <div className="ring-wrap" aria-label="Current activation 72 percent">
@@ -246,17 +305,17 @@ function App() {
 
               <div className="mini-bars" role="list" aria-label="Activation metrics">
                 <div role="listitem" className="mini-bar-row">
-                  <span>Session avg</span>
+                  <span>Plan avg</span>
                   <div><i style={{ width: '64%' }}></i></div>
                   <strong>64%</strong>
                 </div>
                 <div role="listitem" className="mini-bar-row">
-                  <span>Current</span>
+                  <span>Current set</span>
                   <div><i style={{ width: '72%' }}></i></div>
                   <strong>72%</strong>
                 </div>
                 <div role="listitem" className="mini-bar-row">
-                  <span>Peak</span>
+                  <span>Best set</span>
                   <div><i style={{ width: '89%' }}></i></div>
                   <strong>89%</strong>
                 </div>
@@ -266,16 +325,16 @@ function App() {
 
           <article className="dashboard-card">
             <header>
-              <h3>Recovery Progress Chart</h3>
-              <p>Weekly trend view over multiple sessions</p>
+              <h3>Clinical Progress Chart</h3>
+              <p>Weekly trend view for treatment planning</p>
             </header>
             <div className="weekly-grid" role="table" aria-label="Recovery progress">
               <div role="row" className="weekly-head">
                 <span>Week</span>
                 <span>Strength</span>
                 <span>ROM</span>
-                <span>Tension reduction</span>
-                <span>Consistency</span>
+                <span>Tension drop</span>
+                <span>Adherence</span>
               </div>
               {recoveryData.map((item) => (
                 <div role="row" className="weekly-row" key={item.week}>
@@ -291,43 +350,43 @@ function App() {
 
           <article className="dashboard-card alerts-card">
             <header>
-              <h3>Fatigue / Strain Alert Panel</h3>
-              <p>Real-time recovery and effort insights</p>
+              <h3>Clinical Alert Panel</h3>
+              <p>Real-time recovery and therapy pacing insights</p>
             </header>
             <ul className="alerts-list">
-              <li className="alert warn">High tension detected</li>
-              <li className="alert note">Recovery recommended</li>
-              <li className="alert good">Great consistency this session</li>
-              <li className="alert good">Muscle activation improved by 12% this week</li>
+              <li className="alert warn">Above-target tension detected</li>
+              <li className="alert note">Recommend lighter mobility block</li>
+              <li className="alert good">Adherence target met this session</li>
+              <li className="alert good">Activation improved by 12% this week</li>
             </ul>
           </article>
         </div>
       </section>
 
       <section className="section" id="how-it-works">
-        <h2>How It Works</h2>
+        <h2>How Therapy Teams Use It</h2>
         <ol className="steps">
           <li>
             <h3>Step 1: Wear the Sleeve</h3>
-            <p>Put on the smart compression sleeve before training, rehab, or daily activity.</p>
+            <p>Patients wear the therapy sleeve during guided clinic or home exercises.</p>
           </li>
           <li>
-            <h3>Step 2: Track Body Signals</h3>
+            <h3>Step 2: Track Therapy Signals</h3>
             <p>
-              The sleeve concept is designed to collect heart rate, muscle tension,
-              and strength activity data.
+              The sleeve captures heart response, muscle tension, and resistance-based
+              movement effort.
             </p>
           </li>
           <li>
-            <h3>Step 3: View Insights in the App</h3>
+            <h3>Step 3: Review Clinical Insights</h3>
             <p>
-              The app turns raw sensor data into simple graphs, recovery scores, and
-              performance feedback.
+              The app converts sensor data into charts, alert states, and progress
+              metrics clinicians can act on.
             </p>
           </li>
           <li>
-            <h3>Step 4: Improve Over Time</h3>
-            <p>Compare sessions and understand how your body responds to movement.</p>
+            <h3>Step 4: Adjust Treatment with Confidence</h3>
+            <p>Care teams and patients tune workload week by week using objective trends.</p>
           </li>
         </ol>
       </section>
@@ -337,7 +396,8 @@ function App() {
       <section className="section serial-section-intro" id="individual-sensor-views">
         <h2>Individual Sensor Views</h2>
         <p className="section-intro">
-          Legacy per-sensor panels are kept below for focused debugging and quick checks.
+          Individual therapy signal panels are kept below for calibration, validation,
+          and clinical testing.
         </p>
       </section>
 
@@ -346,19 +406,19 @@ function App() {
       <RubberbandResistanceSerialPanel />
 
       <section className="section" id="fashion-track">
-        <h2>Not just wearable tech. Wearable identity.</h2>
+        <h2>Clinical function. Fashion statement.</h2>
         <p className="section-intro">
-          Savior Sleeve is designed for people who want health technology without
-          sacrificing style. Customize colors, patterns, and limited-edition drops to
-          turn recovery support into a statement piece.
+          This MVP treats therapy wear like fashion, not only equipment. The same
+          clinical core can ship in curated colorways and finish options so recovery
+          support feels expressive, modern, and proudly visible.
         </p>
         <div className="style-grid">
-          <article className="style-card">Minimal black athletic sleeve</article>
-          <article className="style-card">UCLA blue/gold edition</article>
-          <article className="style-card">Futuristic cyber sleeve</article>
-          <article className="style-card">Streetwear edition</article>
-          <article className="style-card">Reflective night-run edition</article>
-          <article className="style-card">Rehab comfort edition</article>
+          <article className="style-card">Monochrome clinic-luxe</article>
+          <article className="style-card">Soft neutral recovery line</article>
+          <article className="style-card">High-contrast editorial black</article>
+          <article className="style-card">Satin sport-therapy finish</article>
+          <article className="style-card">Reflective metropolitan silver</article>
+          <article className="style-card">Comfort couture daywear</article>
         </div>
       </section>
 
@@ -367,15 +427,15 @@ function App() {
         <div className="roadmap-grid">
           <article className="roadmap-card">
             <h3>Phase 1</h3>
-            <p>Landing page MVP + dashboard simulation for concept validation.</p>
+            <p>Therapy-focused landing MVP plus dashboard simulation for clinic validation.</p>
           </article>
           <article className="roadmap-card">
             <h3>Phase 2</h3>
-            <p>Prototype sleeve hardware integration and secure session history.</p>
+            <p>Prototype hardware integration with therapist notes and secure patient logs.</p>
           </article>
           <article className="roadmap-card">
             <h3>Phase 3</h3>
-            <p>Coach/therapist sharing tools and personalized recovery recommendations.</p>
+            <p>Clinical workflows, therapist sharing tools, and adaptive treatment recommendations.</p>
           </article>
         </div>
       </section>
@@ -383,10 +443,9 @@ function App() {
       <footer className="section site-footer" id="disclaimer">
         <h2>Disclaimer</h2>
         <p>
-          Savior Sleeve is a prototype concept for wellness, rehabilitation support,
-          and athletic performance visualization. It is not currently a medical
-          device and should not replace professional medical advice, diagnosis, or
-          treatment.
+          Savior Sleeve is a prototype concept for physical and clinical therapy
+          support. It is not currently a medical device and should not replace
+          professional medical advice, diagnosis, or treatment.
         </p>
       </footer>
     </main>

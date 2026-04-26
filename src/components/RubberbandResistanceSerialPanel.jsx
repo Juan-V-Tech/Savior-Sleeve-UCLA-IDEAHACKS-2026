@@ -7,6 +7,44 @@ const HISTORY_LEN = 180
 const CHANGE_NOISE_THRESHOLD = 2
 const STALE_LIMIT = 6
 
+function historyBounds(history, minSpan = 16, paddingRatio = 0.18) {
+  let min = Number.POSITIVE_INFINITY
+  let max = Number.NEGATIVE_INFINITY
+
+  for (const value of history) {
+    if (!Number.isFinite(value)) {
+      continue
+    }
+
+    if (value < min) {
+      min = value
+    }
+    if (value > max) {
+      max = value
+    }
+  }
+
+  if (!Number.isFinite(min) || !Number.isFinite(max)) {
+    return { min: 0, max: minSpan }
+  }
+
+  const span = Math.max(max - min, minSpan)
+  const center = (min + max) / 2
+  const paddedSpan = span * (1 + paddingRatio * 2)
+
+  let nextMin = center - paddedSpan / 2
+  let nextMax = center + paddedSpan / 2
+
+  nextMin = Math.max(0, nextMin)
+  nextMax = Math.min(ADC_MAX, nextMax)
+
+  if (nextMax - nextMin < 1) {
+    nextMax = Math.min(ADC_MAX, nextMin + 1)
+  }
+
+  return { min: nextMin, max: nextMax }
+}
+
 function parseRubberbandLine(line) {
   const taggedMatch = line.match(/(?:^|,)\s*Rubber\s*:\s*(-?\d+)/i)
   if (taggedMatch) {
@@ -88,6 +126,8 @@ function RubberbandResistanceSerialPanel() {
 
     const history = historyRef.current
     const xScale = width / (HISTORY_LEN - 1)
+    const bounds = historyBounds(history, 20)
+    const range = Math.max(bounds.max - bounds.min, 1)
 
     ctx.strokeStyle = '#8f5b15'
     ctx.lineWidth = 2
@@ -95,8 +135,9 @@ function RubberbandResistanceSerialPanel() {
 
     for (let i = 0; i < HISTORY_LEN; i += 1) {
       const x = i * xScale
-      const normalized = Math.max(0, Math.min(history[i], ADC_MAX)) / ADC_MAX
-      const y = height - normalized * height
+      const normalized = (history[i] - bounds.min) / range
+      const clamped = Math.max(0, Math.min(normalized, 1))
+      const y = height - clamped * height
 
       if (i === 0) {
         ctx.moveTo(x, y)
@@ -306,8 +347,8 @@ function RubberbandResistanceSerialPanel() {
     <section className="section serial-panel rubber-panel" id="rubberband-device-integration">
       <div className="section-header-row serial-head">
         <div>
-          <h2>Live Rubberband Resistance Integration</h2>
-          <p>Connect over Web Serial and confirm Analog Reading changes as you stretch the band.</p>
+          <h2>Live Resistance Therapy Feed</h2>
+          <p>Connect over Web Serial and confirm analog changes during guided resistance movement.</p>
         </div>
         <button type="button" className="serial-button rubber-button" onClick={handleConnectToggle}>
           {connected ? 'Disconnect' : 'Connect'}

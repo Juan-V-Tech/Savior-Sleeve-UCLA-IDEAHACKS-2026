@@ -9,6 +9,51 @@ function clamp(value, min, max) {
   return Math.max(min, Math.min(value, max))
 }
 
+function seriesBounds(history, options = {}) {
+  const {
+    minSpan = 16,
+    paddingRatio = 0.18,
+    clampMin = 0,
+    clampMax = ADC_MAX,
+  } = options
+
+  let min = Number.POSITIVE_INFINITY
+  let max = Number.NEGATIVE_INFINITY
+
+  for (const value of history) {
+    if (!Number.isFinite(value)) {
+      continue
+    }
+
+    if (value < min) {
+      min = value
+    }
+    if (value > max) {
+      max = value
+    }
+  }
+
+  if (!Number.isFinite(min) || !Number.isFinite(max)) {
+    return { min: clampMin, max: clampMin + minSpan }
+  }
+
+  const span = Math.max(max - min, minSpan)
+  const center = (min + max) / 2
+  const paddedSpan = span * (1 + paddingRatio * 2)
+
+  let nextMin = center - paddedSpan / 2
+  let nextMax = center + paddedSpan / 2
+
+  nextMin = Math.max(clampMin, nextMin)
+  nextMax = Math.min(clampMax, nextMax)
+
+  if (nextMax - nextMin < 1) {
+    nextMax = Math.min(clampMax, nextMin + 1)
+  }
+
+  return { min: nextMin, max: nextMax }
+}
+
 function parseTaggedLine(line) {
   const segments = line.split(',')
   const values = {}
@@ -30,13 +75,12 @@ function parseTaggedLine(line) {
   const bpm = Number(values.bpm)
   const rubber = Number(values.rubber)
   const force = Number(values.force)
-  const beat = values.beat !== undefined ? Number(values.beat) : null
 
   if ([bpm, rubber, force].some((value) => Number.isNaN(value))) {
     return null
   }
 
-  if ((pulse !== null && Number.isNaN(pulse)) || (beat !== null && Number.isNaN(beat))) {
+  if (pulse !== null && Number.isNaN(pulse)) {
     return null
   }
 
@@ -45,7 +89,6 @@ function parseTaggedLine(line) {
     bpm: clamp(Math.round(bpm), 0, MAX_BPM),
     rubber: clamp(Math.round(rubber), 0, ADC_MAX),
     force: clamp(Math.round(force), 0, ADC_MAX),
-    beat: beat === null ? null : beat > 0,
   }
 }
 
@@ -64,29 +107,55 @@ function CombinedSensorsSerialPanel() {
 
   const [connected, setConnected] = useState(false)
   const [status, setStatus] = useState('Disconnected')
-  const [pulse, setPulse] = useState(null)
   const [bpm, setBpm] = useState(null)
   const [rubber, setRubber] = useState(null)
   const [force, setForce] = useState(null)
-  const [beat, setBeat] = useState(false)
   const [rawLine, setRawLine] = useState('waiting...')
   const [errorMsg, setErrorMsg] = useState('')
 
-  const drawSeries = useCallback((ctx, width, height, history, color) => {
+  const drawSeries = useCallback((ctx, width, height, history, color, boundsOptions = {}, styleOptions = {}) => {
+    const { spikePeaks = false } = styleOptions
     const xStep = width / (HISTORY_LEN - 1)
+    const bounds = seriesBounds(history, boundsOptions)
+    const range = Math.max(bounds.max - bounds.min, 1)
+
     ctx.beginPath()
     ctx.strokeStyle = color
     ctx.lineWidth = 2
 
     for (let i = 0; i < HISTORY_LEN; i += 1) {
       const x = i * xStep
-      const normalized = history[i] / ADC_MAX
-      const y = height - normalized * height
+      const normalized = (history[i] - bounds.min) / range
+      const clamped = clamp(normalized, 0, 1)
+      const y = height - clamped * height
 
       if (i === 0) {
         ctx.moveTo(x, y)
       } else {
-        ctx.lineTo(x, y)
+        const prev = history[i - 1]
+        const next = history[i + 1]
+        const isSpikyPeak =
+          spikePeaks
+          && Number.isFinite(prev)
+          && Number.isFinite(next)
+          && history[i] >= prev
+          && history[i] >= next
+          && history[i] - Math.min(prev, next) >= 4
+
+        if (isSpikyPeak) {
+          const shoulderInset = xStep * 0.26
+          const leftX = x - shoulderInset
+          const rightX = x + shoulderInset
+          const shoulderY = y + 0.9
+          const apexLift = Math.max(height * 0.06, 6)
+          const apexY = Math.max(0, y - apexLift)
+
+          ctx.lineTo(leftX, shoulderY)
+          ctx.lineTo(x, apexY)
+          ctx.lineTo(rightX, shoulderY)
+        } else {
+          ctx.lineTo(x, y)
+        }
       }
     }
 
@@ -118,9 +187,26 @@ function CombinedSensorsSerialPanel() {
       ctx.stroke()
     }
 
-    drawSeries(ctx, width, height, pulseHistoryRef.current, '#f26342')
-    drawSeries(ctx, width, height, rubberHistoryRef.current, '#8f5b15')
-    drawSeries(ctx, width, height, forceHistoryRef.current, '#007f8a')
+    drawSeries(
+      ctx,
+      width,
+      height,
+      pulseHistoryRef.current,
+      '#f26342',
+      {
+        minSpan: 12,
+        clampMax: ADC_MAX,
+      },
+      { spikePeaks: true },
+    )
+    drawSeries(ctx, width, height, rubberHistoryRef.current, '#8f5b15', {
+      minSpan: 22,
+      clampMax: ADC_MAX,
+    })
+    drawSeries(ctx, width, height, forceHistoryRef.current, '#007f8a', {
+      minSpan: 22,
+      clampMax: ADC_MAX,
+    })
   }, [drawSeries])
 
   const initCanvas = useCallback(() => {
@@ -190,7 +276,6 @@ function CombinedSensorsSerialPanel() {
         const heartbeatBpm = Number(beatLineMatch[1])
         if (!Number.isNaN(heartbeatBpm)) {
           setBpm(clamp(Math.round(heartbeatBpm), 0, MAX_BPM))
-          setBeat(true)
         }
         return
       }
@@ -200,14 +285,14 @@ function CombinedSensorsSerialPanel() {
         return
       }
 
-      setPulse(parsed.pulse)
       setBpm(parsed.bpm > 0 ? parsed.bpm : null)
       setRubber(parsed.rubber)
       setForce(parsed.force)
-      setBeat(parsed.beat ?? false)
+
+      const nextPulse = parsed.pulse ?? pulseHistoryRef.current[HISTORY_LEN - 1] ?? 0
 
       pulseHistoryRef.current.shift()
-      pulseHistoryRef.current.push(parsed.pulse ?? 0)
+      pulseHistoryRef.current.push(nextPulse)
 
       rubberHistoryRef.current.shift()
       rubberHistoryRef.current.push(parsed.rubber)
@@ -236,7 +321,6 @@ function CombinedSensorsSerialPanel() {
       portRef.current = port
       setConnected(true)
       setStatus('Connected')
-      setBeat(false)
 
       pulseHistoryRef.current = new Array(HISTORY_LEN).fill(0)
       rubberHistoryRef.current = new Array(HISTORY_LEN).fill(0)
@@ -307,8 +391,8 @@ function CombinedSensorsSerialPanel() {
     <section className="section serial-panel multi-panel" id="multi-device-integration">
       <div className="section-header-row serial-head">
         <div>
-          <h2>Live Combined Sensor Integration</h2>
-          <p>Single ESP32 stream for BPM, Rubber, and Force in one view.</p>
+          <h2>Live Combined Therapy Sensor Feed</h2>
+          <p>Single ESP32 stream for BPM, resistance, and force in one therapy view.</p>
         </div>
         <button type="button" className="serial-button multi-button" onClick={handleConnectToggle}>
           {connected ? 'Disconnect' : 'Connect'}
@@ -318,7 +402,6 @@ function CombinedSensorsSerialPanel() {
       <div className="serial-status-row multi-status-row">
         <span className={`serial-dot ${connected ? 'on' : ''}`} aria-hidden="true"></span>
         <strong>{status}</strong>
-        <span className={`multi-beat-chip ${beat ? 'active' : ''}`}>{beat ? 'Beat Detected' : 'No Beat'}</span>
       </div>
 
       <canvas ref={canvasRef} className="serial-canvas multi-canvas" aria-label="Live combined waveform"></canvas>
@@ -330,11 +413,6 @@ function CombinedSensorsSerialPanel() {
       </ul>
 
       <div className="serial-vars multi-vars">
-        <article className="serial-var multi-pulse">
-          <h3>Pulse (if sent)</h3>
-          <p>{pulse ?? '-'}</p>
-        </article>
-
         <article className="serial-var multi-bpm">
           <h3>BPM</h3>
           <p>{bpm ?? '-'}</p>
@@ -348,11 +426,6 @@ function CombinedSensorsSerialPanel() {
         <article className="serial-var multi-force">
           <h3>Force</h3>
           <p>{force ?? '-'}</p>
-        </article>
-
-        <article className="serial-var multi-beat">
-          <h3>Beat Flag</h3>
-          <p>{beat ? '1000' : '0'}</p>
         </article>
       </div>
 

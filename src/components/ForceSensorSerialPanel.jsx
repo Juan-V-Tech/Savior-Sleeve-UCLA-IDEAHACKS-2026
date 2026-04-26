@@ -6,6 +6,44 @@ const MIN_FORCE = 0
 const MAX_FORCE = 4095
 const FORCE_STRONG_THRESHOLD = 400
 
+function historyBounds(history, minSpan = 16, paddingRatio = 0.18) {
+  let min = Number.POSITIVE_INFINITY
+  let max = Number.NEGATIVE_INFINITY
+
+  for (const value of history) {
+    if (!Number.isFinite(value)) {
+      continue
+    }
+
+    if (value < min) {
+      min = value
+    }
+    if (value > max) {
+      max = value
+    }
+  }
+
+  if (!Number.isFinite(min) || !Number.isFinite(max)) {
+    return { min: MIN_FORCE, max: MIN_FORCE + minSpan }
+  }
+
+  const span = Math.max(max - min, minSpan)
+  const center = (min + max) / 2
+  const paddedSpan = span * (1 + paddingRatio * 2)
+
+  let nextMin = center - paddedSpan / 2
+  let nextMax = center + paddedSpan / 2
+
+  nextMin = Math.max(MIN_FORCE, nextMin)
+  nextMax = Math.min(MAX_FORCE, nextMax)
+
+  if (nextMax - nextMin < 1) {
+    nextMax = Math.min(MAX_FORCE, nextMin + 1)
+  }
+
+  return { min: nextMin, max: nextMax }
+}
+
 function describeForce(value) {
   if (value < 50) {
     return 'Weak'
@@ -81,6 +119,8 @@ function ForceSensorSerialPanel() {
 
     const history = historyRef.current
     const xScale = width / (HISTORY_LEN - 1)
+    const bounds = historyBounds(history, 18)
+    const range = Math.max(bounds.max - bounds.min, 1)
 
     ctx.strokeStyle = '#007f8a'
     ctx.lineWidth = 2
@@ -88,8 +128,9 @@ function ForceSensorSerialPanel() {
 
     for (let i = 0; i < HISTORY_LEN; i += 1) {
       const x = i * xScale
-      const normalized = history[i] / MAX_FORCE
-      const y = height - normalized * height
+      const normalized = (history[i] - bounds.min) / range
+      const clamped = Math.max(0, Math.min(normalized, 1))
+      const y = height - clamped * height
 
       if (i === 0) {
         ctx.moveTo(x, y)
@@ -269,8 +310,8 @@ function ForceSensorSerialPanel() {
     <section className="section serial-panel force-panel" id="force-device-integration">
       <div className="section-header-row serial-head">
         <div>
-          <h2>Live Force Sensor Integration</h2>
-          <p>Connect ESP32 over Web Serial to stream FSR pressure value, live level, and trend.</p>
+          <h2>Live Therapy Force Feed</h2>
+          <p>Connect ESP32 over Web Serial to stream pressure value, level, and rehab trend.</p>
         </div>
         <button type="button" className="serial-button force-button" onClick={handleConnectToggle}>
           {connected ? 'Disconnect' : 'Connect'}
