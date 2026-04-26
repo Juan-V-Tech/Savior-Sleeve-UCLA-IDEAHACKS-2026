@@ -162,10 +162,18 @@ function App() {
 
         <div className="hero-visual" aria-label="Savior Sleeve therapy fashion visuals">
           <figure className="tbd-image-card">
-            <figcaption>TBD: Therapy couture wordmark</figcaption>
+            <img
+              src="/2026photo1ideahacks.jpg"
+              alt="Savior Sleeve prototype worn on arm"
+              loading="lazy"
+            />
           </figure>
           <figure className="tbd-image-card tall">
-            <figcaption>TBD: Layered clinical-fashion sleeve render</figcaption>
+            <img
+              src="/2026photo2ideahacks.jpg"
+              alt="Savior Sleeve prototype with full setup"
+              loading="lazy"
+            />
           </figure>
         </div>
       </section>
