@@ -124,6 +124,66 @@ function PulseSensorSerialPanel() {
     (line) => {
       setRawLine(line)
 
+      const taggedPulseMatch = line.match(/(?:^|,)\s*Pulse\s*:\s*(-?\d+)/i)
+      const taggedBpmMatch = line.match(/\bBPM\s*:\s*(-?\d+)/i)
+
+      if (taggedBpmMatch) {
+        const nextSignal = taggedPulseMatch ? Number(taggedPulseMatch[1]) : null
+        const nextBpm = Number(taggedBpmMatch[1])
+
+        if ((nextSignal !== null && Number.isNaN(nextSignal)) || Number.isNaN(nextBpm)) {
+          return
+        }
+
+        if (nextSignal !== null) {
+          setSignal(nextSignal)
+        }
+
+        if (nextBpm > 0) {
+          const cappedBpm = Math.min(nextBpm, MAX_BPM)
+          const previousSmoothed = smoothedBpmRef.current
+
+          if (previousSmoothed === null) {
+            smoothedBpmRef.current = cappedBpm
+          } else {
+            const boundedTarget = Math.max(
+              previousSmoothed - MAX_BPM_STEP,
+              Math.min(cappedBpm, previousSmoothed + MAX_BPM_STEP),
+            )
+
+            smoothedBpmRef.current = previousSmoothed + (boundedTarget - previousSmoothed) * BPM_SMOOTHING_ALPHA
+          }
+
+          setBpm(Math.round(smoothedBpmRef.current))
+        } else {
+          smoothedBpmRef.current = null
+          setBpm(null)
+        }
+
+        // Combined stream does not include IBI.
+        setIbi(null)
+
+        if (nextSignal !== null) {
+          const taggedHistory = historyRef.current
+          taggedHistory.shift()
+          taggedHistory.push(nextSignal)
+
+          let min = taggedHistory[0]
+          let max = taggedHistory[0]
+          for (let i = 1; i < taggedHistory.length; i += 1) {
+            if (taggedHistory[i] < min) {
+              min = taggedHistory[i]
+            }
+            if (taggedHistory[i] > max) {
+              max = taggedHistory[i]
+            }
+          }
+
+          drawWave(min, max)
+        }
+        return
+      }
+
       const parts = line.split(',')
       if (parts.length < 3) {
         return

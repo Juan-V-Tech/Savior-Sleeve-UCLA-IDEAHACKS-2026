@@ -410,6 +410,11 @@
   margin-bottom: 1.3rem;
 }
 
+.serial-section-intro {
+  display: grid;
+  gap: 0.4rem;
+}
+
 .serial-panel {
   display: grid;
   gap: 0.9rem;
@@ -522,6 +527,221 @@
   font-weight: 600;
 }
 
+.multi-panel {
+  background:
+    linear-gradient(145deg, rgba(242, 99, 66, 0.1), rgba(0, 127, 138, 0.08) 52%, transparent 78%),
+    var(--surface);
+}
+
+.multi-button {
+  background: linear-gradient(90deg, #f26342, #007f8a);
+  box-shadow: 0 8px 20px rgba(29, 83, 96, 0.3);
+}
+
+.multi-status-row {
+  flex-wrap: wrap;
+}
+
+.multi-beat-chip {
+  border-radius: 999px;
+  border: 1px solid rgba(72, 84, 92, 0.28);
+  background: rgba(84, 104, 112, 0.11);
+  color: #374b53;
+  padding: 0.22rem 0.62rem;
+  font-size: 0.84rem;
+  font-weight: 600;
+}
+
+.multi-beat-chip.active {
+  border-color: rgba(47, 148, 83, 0.35);
+  background: rgba(47, 148, 83, 0.16);
+  color: #23663b;
+}
+
+.multi-canvas {
+  background:
+    linear-gradient(180deg, rgba(242, 99, 66, 0.08), rgba(0, 127, 138, 0.08) 60%, transparent),
+    #eff6f9;
+}
+
+.multi-legend {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.multi-legend li {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.22rem 0.5rem;
+  border-radius: 0.5rem;
+  border: 1px solid var(--surface-border);
+  background: #fff;
+  font-size: 0.84rem;
+  font-weight: 600;
+}
+
+.multi-legend .dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+}
+
+.multi-legend .dot.pulse {
+  background: #f26342;
+}
+
+.multi-legend .dot.rubber {
+  background: #8f5b15;
+}
+
+.multi-legend .dot.force {
+  background: #007f8a;
+}
+
+.multi-vars {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+
+.serial-var.multi-pulse p {
+  color: #f26342;
+}
+
+.serial-var.multi-bpm p {
+  color: #2f9453;
+}
+
+.serial-var.multi-rubber p {
+  color: #8f5b15;
+}
+
+.serial-var.multi-force p {
+  color: #007f8a;
+}
+
+.serial-var.multi-beat p {
+  color: #3d5c67;
+}
+
+.force-panel {
+  background:
+    linear-gradient(155deg, rgba(0, 127, 138, 0.08), transparent 50%),
+    var(--surface);
+}
+
+.force-button {
+  background: linear-gradient(90deg, #007f8a, #00a6b3);
+  box-shadow: 0 8px 20px rgba(0, 127, 138, 0.28);
+}
+
+.force-status-row {
+  flex-wrap: wrap;
+}
+
+.force-level-chip {
+  border-radius: 999px;
+  border: 1px solid rgba(0, 127, 138, 0.25);
+  background: rgba(0, 127, 138, 0.1);
+  color: #05545c;
+  padding: 0.22rem 0.62rem;
+  font-size: 0.84rem;
+  font-weight: 600;
+}
+
+.force-canvas {
+  background:
+    linear-gradient(180deg, rgba(0, 166, 179, 0.08), transparent 42%),
+    #eff6f9;
+}
+
+.serial-var.force-raw p {
+  color: #007f8a;
+}
+
+.serial-var.force-percent p {
+  color: #2f9453;
+}
+
+.serial-var.force-peak p {
+  color: #b57723;
+}
+
+.rubber-panel {
+  background:
+    linear-gradient(155deg, rgba(181, 119, 35, 0.09), transparent 50%),
+    var(--surface);
+}
+
+.rubber-button {
+  background: linear-gradient(90deg, #8f5b15, #bf8a3f);
+  box-shadow: 0 8px 20px rgba(143, 91, 21, 0.28);
+}
+
+.rubber-status-row {
+  flex-wrap: wrap;
+}
+
+.rubber-level-chip {
+  border-radius: 999px;
+  border: 1px solid rgba(143, 91, 21, 0.28);
+  background: rgba(143, 91, 21, 0.11);
+  color: #5f3f11;
+  padding: 0.22rem 0.62rem;
+  font-size: 0.84rem;
+  font-weight: 600;
+}
+
+.rubber-canvas {
+  background:
+    linear-gradient(180deg, rgba(191, 138, 63, 0.1), transparent 42%),
+    #eff6f9;
+}
+
+.rubber-vars {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.serial-var.rubber-analog p {
+  color: #007f8a;
+}
+
+.serial-var.rubber-delta p {
+  color: #3d5c67;
+}
+
+.serial-var.rubber-ohms p {
+  color: #8f5b15;
+}
+
+.serial-var.rubber-rom p {
+  color: #2f9453;
+}
+
+.serial-var.rubber-peak p {
+  color: #b57723;
+}
+
+.serial-var.rubber-health p {
+  font-size: 1rem;
+  line-height: 1.2;
+}
+
+.rubber-health-text.idle {
+  color: #6a7980;
+}
+
+.rubber-health-text.good {
+  color: #2f9453;
+}
+
+.rubber-health-text.warn {
+  color: #a22f11;
+}
+
 @media (max-width: 1080px) {
   .hero {
     grid-template-columns: 1fr;
@@ -551,6 +771,14 @@
   .serial-vars {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+
+  .multi-vars {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .rubber-vars {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 @media (max-width: 640px) {
@@ -577,6 +805,10 @@
   }
 
   .serial-vars {
+    grid-template-columns: 1fr;
+  }
+
+  .multi-vars {
     grid-template-columns: 1fr;
   }
 

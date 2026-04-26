@@ -1,5 +1,8 @@
 import './App.css'
+import CombinedSensorsSerialPanel from './components/CombinedSensorsSerialPanel'
 import PulseSensorSerialPanel from './components/PulseSensorSerialPanel'
+import ForceSensorSerialPanel from './components/ForceSensorSerialPanel'
+import RubberbandResistanceSerialPanel from './components/RubberbandResistanceSerialPanel'
 
 const heartRateData = [72, 80, 96, 121, 142, 156, 148, 131, 109, 92]
 const tensionData = [20, 24, 31, 48, 62, 70, 73, 61, 42, 30]
@@ -329,7 +332,18 @@ function App() {
         </ol>
       </section>
 
+      <CombinedSensorsSerialPanel />
+
+      <section className="section serial-section-intro" id="individual-sensor-views">
+        <h2>Individual Sensor Views</h2>
+        <p className="section-intro">
+          Legacy per-sensor panels are kept below for focused debugging and quick checks.
+        </p>
+      </section>
+
       <PulseSensorSerialPanel />
+      <ForceSensorSerialPanel />
+      <RubberbandResistanceSerialPanel />
 
       <section className="section" id="fashion-track">
         <h2>Not just wearable tech. Wearable identity.</h2>
